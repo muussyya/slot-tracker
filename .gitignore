@@ -1,0 +1,13 @@
+# アプリから書き出したバックアップ(実際の収支データを含むため公開しない)
+slot-backup-*.json
+slot-records-*.csv
+# ブラウザで再ダウンロードしたときの連番ファイル (例: slot-backup-20261109 (1).json)
+slot-backup-*
+slot-records-*
+
+# OS・エディタの不要ファイル
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

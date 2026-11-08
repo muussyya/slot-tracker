@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a1d29">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="スロ収支">
+<title>スロ収支</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="appbar"><h1 id="title">実戦記録</h1></header>
+
+<main>
+  <!-- ===== 記録 ===== -->
+  <section id="tab-record" class="tab active">
+    <form id="form" class="card" autocomplete="off">
+      <input type="hidden" name="id">
+      <div class="grid2">
+        <label>日付<input type="date" name="date" required></label>
+        <label>台番号<input type="text" name="tableNo" inputmode="numeric" required></label>
+      </div>
+      <label>ホール名<input type="text" name="hall" list="dl-hall" required></label>
+      <label>機種名<input type="text" name="machine" list="dl-machine" required placeholder="例: マイジャグラーV"></label>
+      <div class="grid2">
+        <label>投資枚数<input type="number" name="invest" inputmode="numeric" min="0" required></label>
+        <label>回収枚数<input type="number" name="payout" inputmode="numeric" min="0" required></label>
+      </div>
+      <div class="diffline">差枚: <b id="form-diff">—</b></div>
+
+      <label>総回転数<span class="opt">任意</span><input type="number" name="games" inputmode="numeric" min="0"></label>
+
+      <details id="detail">
+        <summary>小役・ボーナス詳細 <span class="opt">任意</span></summary>
+        <p class="hint">未入力の項目は確率計算から除外されます。0回のときは「0」を入力してください。</p>
+        <div class="grid2">
+          <label>単独BB<input type="number" name="bbSolo" inputmode="numeric" min="0"></label>
+          <label>複合BB<input type="number" name="bbCombo" inputmode="numeric" min="0"></label>
+          <label>単独RB<input type="number" name="rbSolo" inputmode="numeric" min="0"></label>
+          <label>複合RB<input type="number" name="rbCombo" inputmode="numeric" min="0"></label>
+          <label>ブドウ<input type="number" name="grape" inputmode="numeric" min="0"></label>
+          <label>非重複チェリー<input type="number" name="cherry" inputmode="numeric" min="0"></label>
+          <label>レアチェリー<input type="number" name="rareCherry" inputmode="numeric" min="0"></label>
+          <label>一枚役<input type="number" name="oneCoin" inputmode="numeric" min="0"></label>
+        </div>
+      </details>
+
+      <label>メモ<span class="opt">任意</span><input type="text" name="memo"></label>
+
+      <div class="btnrow">
+        <button type="button" id="btn-cancel" class="btn ghost" hidden>キャンセル</button>
+        <button type="submit" id="btn-save" class="btn primary">記録する</button>
+      </div>
+    </form>
+
+    <h2 class="sec">記録一覧</h2>
+    <div class="filter">
+      <select id="list-month"></select>
+      <select id="list-machine"></select>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <!-- ===== 機種別 ===== -->
+  <section id="tab-machine" class="tab">
+    <div id="machine-summary"></div>
+  </section>
+
+  <!-- ===== 全体 ===== -->
+  <section id="tab-total" class="tab">
+    <div id="total-summary"></div>
+  </section>
+
+  <!-- ===== グラフ ===== -->
+  <section id="tab-graph" class="tab">
+    <div class="seg" id="graph-mode">
+      <button data-mode="day" class="on">日別</button>
+      <button data-mode="month">月別</button>
+      <button data-mode="cum">累計</button>
+    </div>
+    <div class="filter"><select id="graph-machine"></select></div>
+    <div class="card chartcard"><canvas id="chart"></canvas></div>
+    <div id="graph-table"></div>
+  </section>
+
+  <!-- ===== データ ===== -->
+  <section id="tab-data" class="tab">
+    <div class="card">
+      <h3>バックアップ</h3>
+      <p class="hint">データはこの端末のブラウザ内にのみ保存されています。ブラウザのデータ削除や機種変更に備え、定期的にエクスポートしてください。</p>
+      <button class="btn primary block" id="btn-export">JSONでエクスポート</button>
+      <button class="btn block" id="btn-export-csv">CSVでエクスポート</button>
+    </div>
+    <div class="card">
+      <h3>インポート</h3>
+      <p class="hint">エクスポートしたJSONファイルを読み込みます。</p>
+      <label class="radio"><input type="radio" name="impmode" value="merge" checked> 既存データに追加(同じIDは上書き)</label>
+      <label class="radio"><input type="radio" name="impmode" value="replace"> 既存データを全て置き換え</label>
+      <input type="file" id="file-import" accept="application/json,.json" hidden>
+      <button class="btn block" id="btn-import">ファイルを選択してインポート</button>
+    </div>
+    <div class="card">
+      <h3>データ情報</h3>
+      <p id="data-info" class="hint"></p>
+      <button class="btn danger block" id="btn-clear">全データを削除</button>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar">
+  <button data-tab="record" class="on"><span>✎</span>記録</button>
+  <button data-tab="machine"><span>🎰</span>機種別</button>
+  <button data-tab="total"><span>Σ</span>全体</button>
+  <button data-tab="graph"><span>📈</span>グラフ</button>
+  <button data-tab="data"><span>⚙</span>データ</button>
+</nav>
+
+<datalist id="dl-hall"></datalist>
+<datalist id="dl-machine"></datalist>
+<div id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
