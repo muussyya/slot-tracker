@@ -1,5 +1,5 @@
 // アプリ更新時は VERSION を変更するとキャッシュが入れ替わる
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = 'slot-tracker-' + VERSION;
 const ASSETS = [
   './', './index.html', './style.css', './app.js', './manifest.webmanifest',

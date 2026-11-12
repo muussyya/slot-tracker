@@ -89,17 +89,68 @@
     <div id="graph-table"></div>
   </section>
 
+  <!-- ===== 家計簿 ===== -->
+  <section id="tab-kakeibo" class="tab">
+    <div class="seg" id="kb-view">
+      <button data-view="input" class="on">入力</button>
+      <button data-view="month">月別</button>
+      <button data-view="trend">推移・累計</button>
+    </div>
+
+    <div id="kb-input" class="kbview">
+      <form id="kb-form" class="card" autocomplete="off">
+        <input type="hidden" name="id">
+        <div class="seg seg-in" id="kb-type">
+          <button type="button" data-type="expense" class="on">支出</button>
+          <button type="button" data-type="income">収入</button>
+        </div>
+        <div class="grid2">
+          <label>日付<input type="date" name="date" required></label>
+          <label>金額(円)<input type="number" name="amount" class="amount" inputmode="numeric" min="1" step="1" required placeholder="0"></label>
+        </div>
+        <div class="lbl">カテゴリ <button type="button" class="linkbtn" id="kb-cat-edit">編集</button></div>
+        <div class="chips" id="kb-cats"></div>
+        <label>メモ<span class="opt">任意</span><input type="text" name="memo"></label>
+        <div class="btnrow">
+          <button type="button" id="kb-cancel" class="btn ghost" hidden>キャンセル</button>
+          <button type="submit" id="kb-save" class="btn primary">記録する</button>
+        </div>
+      </form>
+      <div id="kb-list"></div>
+    </div>
+
+    <div id="kb-month" class="kbview" hidden></div>
+    <div id="kb-trend" class="kbview" hidden></div>
+  </section>
+
   <!-- ===== データ ===== -->
   <section id="tab-data" class="tab">
+    <div class="card">
+      <h3>換算レート</h3>
+      <p class="hint">差枚数を円に換算する交換率(1000円あたりの枚数)。表示するときに計算するだけで、記録データは変わりません。</p>
+      <div class="raterow"><span>1000円 =</span><input type="number" id="rate" inputmode="decimal" min="1" step="any"><span>枚</span></div>
+      <p class="hint" id="rate-preview"></p>
+    </div>
+    <div class="card" id="cat-card">
+      <h3>家計簿のカテゴリ</h3>
+      <div class="seg seg-in" id="cat-type">
+        <button type="button" data-type="expense" class="on">支出</button>
+        <button type="button" data-type="income">収入</button>
+      </div>
+      <div id="cat-list"></div>
+      <button class="btn block" id="btn-cat-add">＋ カテゴリを追加</button>
+    </div>
     <div class="card">
       <h3>バックアップ</h3>
       <p class="hint">データはこの端末のブラウザ内にのみ保存されています。ブラウザのデータ削除や機種変更に備え、定期的にエクスポートしてください。</p>
       <button class="btn primary block" id="btn-export">JSONでエクスポート</button>
-      <button class="btn block" id="btn-export-csv">CSVでエクスポート</button>
+      <p class="hint">JSONには実戦記録と家計簿(収入・支出・カテゴリ・換算レート)がまとめて含まれます。</p>
+      <button class="btn block" id="btn-export-csv">実戦記録をCSVでエクスポート</button>
+      <button class="btn block" id="btn-export-kb-csv">家計簿をCSVでエクスポート</button>
     </div>
     <div class="card">
       <h3>インポート</h3>
-      <p class="hint">エクスポートしたJSONファイルを読み込みます。</p>
+      <p class="hint">エクスポートしたJSONファイルを読み込みます(家計簿機能追加前の古いファイルも読み込めます。その場合、家計簿データはそのまま残ります)。</p>
       <label class="radio"><input type="radio" name="impmode" value="merge" checked> 既存データに追加(同じIDは上書き)</label>
       <label class="radio"><input type="radio" name="impmode" value="replace"> 既存データを全て置き換え</label>
       <input type="file" id="file-import" accept="application/json,.json" hidden>
@@ -108,7 +159,8 @@
     <div class="card">
       <h3>データ情報</h3>
       <p id="data-info" class="hint"></p>
-      <button class="btn danger block" id="btn-clear">全データを削除</button>
+      <button class="btn danger block" id="btn-clear">実戦記録を全て削除</button>
+      <button class="btn danger block" id="btn-clear-kb">家計簿の記録を全て削除</button>
     </div>
   </section>
 </main>
@@ -118,6 +170,7 @@
   <button data-tab="machine"><span>🎰</span>機種別</button>
   <button data-tab="total"><span>Σ</span>全体</button>
   <button data-tab="graph"><span>📈</span>グラフ</button>
+  <button data-tab="kakeibo"><span>¥</span>家計簿</button>
   <button data-tab="data"><span>⚙</span>データ</button>
 </nav>
 
