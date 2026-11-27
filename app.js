@@ -193,6 +193,16 @@ function calcProbs(recs) {
     return { ...def, games, count, n: target.length, prob: count > 0 ? games / count : null };
   }).filter(Boolean);
 }
+// 機械割 = (総投入 + 差枚) ÷ 総投入 × 100、総投入 = 総回転数 × 3枚(slot-analysis の evaluate.py と同じ式)
+// 総回転数が入力された実戦だけを対象に、回転数と差枚をそれぞれ合計してから割る
+const COIN_PER_GAME = 3;
+function calcWari(recs) {
+  const target = recs.filter(r => r.games != null && r.games > 0);
+  const bet = sum(target, 'games') * COIN_PER_GAME;
+  return { rate: bet ? ((bet + sum(target, diffOf)) / bet) * 100 : null, n: target.length, total: recs.length };
+}
+const wariCls = v => (v == null ? '' : v > 100 ? 'plus' : v < 100 ? 'minus' : '');
+const wariText = v => (v == null ? '—' : v.toFixed(1) + '%');
 function calcMoney(recs) {
   const invest = sum(recs, 'invest');
   const payout = sum(recs, 'payout');
@@ -203,6 +213,7 @@ function calcMoney(recs) {
     count: recs.length, days, invest, payout, diff: payout - invest, wins,
     games: sum(gamesRecs, 'games'),
     winRate: recs.length ? (wins / recs.length) * 100 : 0,
+    wari: calcWari(recs),
   };
 }
 
@@ -217,6 +228,8 @@ function moneyHTML(m) {
       <div><span>回収</span><b>${fmt(m.payout)}枚</b></div>
       <div><span>総回転数</span><b>${m.games ? fmt(m.games) + 'G' : '—'}</b></div>
       <div><span>勝率</span><b>${m.winRate.toFixed(1)}%</b></div>
+      <div><span>機械割</span><b class="${wariCls(m.wari.rate)}">${wariText(m.wari.rate)}</b></div>
+      ${m.wari.rate != null && m.wari.n < m.wari.total ? `<div><span>機械割の対象</span><b>${m.wari.n}回 / 全${m.wari.total}回</b></div>` : ''}
     </div>`;
 }
 function probsHTML(probs) {
@@ -280,13 +293,19 @@ function resetForm(keep) {
 function updateFormDiff() {
   const inv = toNum(form.invest.value), pay = toNum(form.payout.value);
   const el = $('#form-diff');
-  if (inv == null && pay == null) { el.textContent = '—'; el.className = ''; return; }
+  if (inv == null && pay == null) { el.textContent = '—'; el.className = ''; $('#form-wari').textContent = ''; return; }
   const d = (pay || 0) - (inv || 0);
   el.textContent = `${signed(d)}枚(${yen(yenOf(d))})`;
   el.className = cls(d);
+  const g = toNum(form.games.value);
+  const w = g > 0 ? calcWari([{ games: g, invest: inv || 0, payout: pay || 0 }]).rate : null;
+  const wel = $('#form-wari');
+  wel.textContent = w == null ? '' : `機械割 ${wariText(w)}`;
+  wel.className = 'wari ' + wariCls(w);
 }
 form.invest.addEventListener('input', updateFormDiff);
 form.payout.addEventListener('input', updateFormDiff);
+form.games.addEventListener('input', updateFormDiff);
 
 form.addEventListener('submit', e => {
   e.preventDefault();
@@ -344,6 +363,7 @@ function refreshDatalists() {
 
 /* ============ 記録一覧 ============ */
 let listLimit = 30;
+const openRecs = new Set(); // 詳細を開いている実戦のID
 function fillSelect(sel, options, allLabel) {
   const cur = sel.value;
   sel.innerHTML = `<option value="">${allLabel}</option>` + options.map(o => `<option value="${esc(o.v)}">${esc(o.t)}</option>`).join('');
@@ -361,21 +381,44 @@ function renderList() {
   el.innerHTML = `<p class="hint">${list.length}件 / 差枚合計 <b class="${cls(tot)}">${signed(tot)}枚</b>(<b class="${cls(tot)}">${yen(yenOf(tot))}</b>)</p>` +
     list.slice(0, listLimit).map(r => {
       const d = diffOf(r);
-      return `<div class="rec">
-        <div class="main">
-          <div class="t1">${esc(r.machine)} <small>${esc(r.tableNo)}番</small></div>
-          <div class="t2">${r.date} ・ ${esc(r.hall)}${r.games != null ? ' ・ ' + fmt(r.games) + 'G' : ''}${r.memo ? ' ・ ' + esc(r.memo) : ''}</div>
+      const w = calcWari([r]).rate;
+      const open = openRecs.has(r.id);
+      return `<div class="rec${open ? ' open' : ''}">
+        <div class="main" data-toggle="${r.id}" role="button" aria-expanded="${open}">
+          <div class="t1"><span class="chev">${open ? '▾' : '▸'}</span>${esc(r.machine)} <small>${esc(r.tableNo)}番</small></div>
+          <div class="t2">${r.date} ・ ${esc(r.hall)}${r.games != null ? ' ・ ' + fmt(r.games) + 'G' : ''}${w != null ? ` ・ <span class="${wariCls(w)}">${wariText(w)}</span>` : ''}${r.memo ? ' ・ ' + esc(r.memo) : ''}</div>
         </div>
         <div class="d ${cls(d)}">${signed(d)}${yenSmall(d)}</div>
         <div class="acts">
           <button class="iconbtn" data-edit="${r.id}" aria-label="編集">✎</button>
           <button class="iconbtn" data-del="${r.id}" aria-label="削除">🗑</button>
         </div>
+        ${open ? `<div class="det">${recordDetailHTML(r)}</div>` : ''}
       </div>`;
     }).join('') +
     (list.length > listLimit ? `<button class="btn block" id="btn-more">もっと見る(残り${list.length - listLimit}件)</button>` : '');
 }
+// 1回の実戦の詳細(機種別サマリーと同じ確率表を、この実戦だけで計算)
+function recordDetailHTML(r) {
+  const d = diffOf(r), w = calcWari([r]).rate;
+  return `<div class="kv">
+      <div><span>投資</span><b>${fmt(r.invest)}枚</b></div>
+      <div><span>回収</span><b>${fmt(r.payout)}枚</b></div>
+      <div><span>差枚</span><b class="${cls(d)}">${signed(d)}枚</b></div>
+      <div><span>円換算</span><b class="${cls(d)}">${yen(yenOf(d))}</b></div>
+      <div><span>総回転数</span><b>${r.games ? fmt(r.games) + 'G' : '—'}</b></div>
+      <div><span>機械割</span><b class="${wariCls(w)}">${wariText(w)}</b></div>
+    </div>
+    ${probsHTML(calcProbs([r]))}`;
+}
 $('#list').addEventListener('click', e => {
+  const t = e.target.closest('[data-toggle]');
+  if (t) {
+    const id = t.dataset.toggle;
+    if (openRecs.has(id)) openRecs.delete(id); else openRecs.add(id);
+    renderList();
+    return;
+  }
   const b = e.target.closest('button');
   if (!b) return;
   if (b.dataset.edit) editRecord(b.dataset.edit);
@@ -417,7 +460,7 @@ function renderTotal() {
   const mDiff = sum(mRecs, diffOf);
   const byMachine = machines().map(m => {
     const rs = records.filter(r => r.machine === m);
-    return { m, n: rs.length, diff: sum(rs, diffOf) };
+    return { m, n: rs.length, diff: sum(rs, diffOf), wari: calcWari(rs).rate };
   }).sort((a, b) => b.diff - a.diff);
 
   el.innerHTML = `
@@ -435,8 +478,8 @@ function renderTotal() {
     <div class="card">
       <h3>機種別収支</h3>
       <table class="list">
-        <tr><th>機種</th><th>実戦</th><th>差枚</th><th>円換算</th></tr>
-        ${byMachine.map(x => `<tr><td>${esc(x.m)}</td><td>${x.n}</td><td class="${cls(x.diff)}">${signed(x.diff)}</td><td class="${cls(x.diff)}">${yen(yenOf(x.diff))}</td></tr>`).join('')}
+        <tr><th>機種</th><th>実戦</th><th>差枚</th><th>円換算</th><th>機械割</th></tr>
+        ${byMachine.map(x => `<tr><td>${esc(x.m)}</td><td>${x.n}</td><td class="${cls(x.diff)}">${signed(x.diff)}</td><td class="${cls(x.diff)}">${yen(yenOf(x.diff))}</td><td class="${wariCls(x.wari)}">${wariText(x.wari)}</td></tr>`).join('')}
       </table>
     </div>`;
 }
@@ -459,11 +502,16 @@ function renderGraph() {
   const map = new Map();
   for (const r of recs) {
     const k = r.date.slice(0, keyLen);
-    map.set(k, (map.get(k) || 0) + diffOf(r));
+    if (!map.has(k)) map.set(k, []);
+    map.get(k).push(r);
   }
   const keys = [...map.keys()].sort();
   let acc = 0;
-  const data = keys.map(k => { acc += map.get(k); return { k, v: map.get(k), cum: acc }; });
+  const data = keys.map(k => {
+    const rs = map.get(k), v = sum(rs, diffOf);
+    acc += v;
+    return { k, v, cum: acc, wari: calcWari(rs).rate };
+  });
 
   const shown = graphMode === 'day' ? data.slice(-60) : data; // 日別は直近60日
   drawChart($('#chart'), shown, graphMode);
@@ -472,8 +520,8 @@ function renderGraph() {
   $('#graph-table').innerHTML = data.length ? `
     <h2 class="sec">${graphMode === 'month' ? '月別' : '日別'}一覧</h2>
     <table class="list">
-      <tr><th>${graphMode === 'month' ? '月' : '日付'}</th><th>差枚</th><th>累計</th></tr>
-      ${tbl.map(d => `<tr><td>${d.k}</td><td class="${cls(d.v)}">${signed(d.v)}${yenSmall(d.v)}</td><td class="${cls(d.cum)}">${signed(d.cum)}${yenSmall(d.cum)}</td></tr>`).join('')}
+      <tr><th>${graphMode === 'month' ? '月' : '日付'}</th><th>差枚</th><th>累計</th><th>機械割</th></tr>
+      ${tbl.map(d => `<tr><td>${d.k}</td><td class="${cls(d.v)}">${signed(d.v)}${yenSmall(d.v)}</td><td class="${cls(d.cum)}">${signed(d.cum)}${yenSmall(d.cum)}</td><td class="${wariCls(d.wari)}">${wariText(d.wari)}</td></tr>`).join('')}
     </table>` : '';
 }
 
@@ -934,10 +982,14 @@ $('#btn-export').addEventListener('click', () => {
   download(`slot-backup-${stamp()}.json`, JSON.stringify(payload, null, 2), 'application/json');
 });
 $('#btn-export-csv').addEventListener('click', () => {
-  const cols = ['date', 'hall', 'machine', 'tableNo', 'invest', 'payout', 'diff', ...OPT_FIELDS, 'memo'];
-  const head = ['日付', 'ホール', '機種', '台番号', '投資', '回収', '差枚', '総回転数', '単独BB', '複合BB', '単独RB', '複合RB', 'ブドウ', '非重複チェリー', 'レアチェリー', '一枚役', 'メモ'];
+  const cols = ['date', 'hall', 'machine', 'tableNo', 'invest', 'payout', 'diff', 'wari', ...OPT_FIELDS, 'memo'];
+  const head = ['日付', 'ホール', '機種', '台番号', '投資', '回収', '差枚', '機械割(%)', '総回転数', '単独BB', '複合BB', '単独RB', '複合RB', 'ブドウ', '非重複チェリー', 'レアチェリー', '一枚役', 'メモ'];
   const q = v => (v == null ? '' : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
-  const rows = sortedRecords().reverse().map(r => cols.map(c => q(c === 'diff' ? diffOf(r) : r[c])).join(','));
+  const rows = sortedRecords().reverse().map(r => cols.map(c => {
+    if (c === 'diff') return q(diffOf(r));
+    if (c === 'wari') { const w = calcWari([r]).rate; return q(w == null ? null : w.toFixed(1)); }
+    return q(r[c]);
+  }).join(','));
   download(`slot-records-${stamp()}.csv`, '﻿' + [head.join(','), ...rows].join('\r\n'), 'text/csv');
 });
 $('#btn-export-kb-csv').addEventListener('click', () => {

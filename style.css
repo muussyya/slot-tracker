@@ -209,3 +209,10 @@ table.list tr.foot td { font-weight: 700; }
 .catrow { display: flex; align-items: center; gap: 4px; padding: 4px 0; border-bottom: 1px solid var(--line); }
 .catrow .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .catrow .cnt { font-size: 12px; color: var(--sub); }
+
+/* ===== 機械割・実戦ごとの詳細 ===== */
+.diffline .wari { margin-left: 8px; font-size: 13px; }
+.rec { flex-wrap: wrap; }
+.rec .main { cursor: pointer; }
+.rec .chev { color: var(--sub); font-weight: normal; margin-right: 4px; }
+.rec .det { flex-basis: 100%; border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; }

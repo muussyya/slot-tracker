@@ -1,8 +1,8 @@
 // アプリ更新時は VERSION と index.html の ?v= を変更するとキャッシュが入れ替わる
-const VERSION = 'v3';
+const VERSION = 'v4';
 const CACHE = 'slot-tracker-' + VERSION;
 const ASSETS = [
-  './', './index.html', './style.css?v=3', './app.js?v=3', './manifest.webmanifest',
+  './', './index.html', './style.css?v=4', './app.js?v=4', './manifest.webmanifest',
   './icons/icon.svg', './icons/icon-180.png', './icons/icon-192.png', './icons/icon-512.png',
 ];
 self.addEventListener('install', e => {

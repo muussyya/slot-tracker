@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <header class="appbar"><h1 id="title">実戦記録</h1></header>
@@ -32,7 +32,7 @@
         <label>投資枚数<input type="number" name="invest" inputmode="numeric" min="0" required></label>
         <label>回収枚数<input type="number" name="payout" inputmode="numeric" min="0" required></label>
       </div>
-      <div class="diffline">差枚: <b id="form-diff">—</b></div>
+      <div class="diffline">差枚: <b id="form-diff">—</b> <b id="form-wari" class="wari"></b></div>
 
       <label>総回転数<span class="opt">任意</span><input type="number" name="games" inputmode="numeric" min="0"></label>
 
@@ -178,6 +178,6 @@
 <datalist id="dl-machine"></datalist>
 <div id="toast"></div>
 
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
